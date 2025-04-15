@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -63,6 +63,19 @@ export const friends = pgTable("friends", {
   status: text("status").notNull().default("pending"), // pending, accepted, rejected
 });
 
+export const voiceJournals = pgTable("voice_journals", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  title: text("title").notNull(),
+  audioUrl: text("audio_url").notNull(),
+  transcription: text("transcription"),
+  date: timestamp("date").notNull().defaultNow(),
+  duration: integer("duration").notNull(), // duration in seconds
+  sentiment: jsonb("sentiment"), // sentiment analysis results
+  tags: text("tags").array(), // tags/topics detected in the journal
+  category: text("category").notNull().default("general"),
+});
+
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   password: true,
@@ -93,12 +106,19 @@ export const insertFriendSchema = createInsertSchema(friends).omit({
   id: true,
 });
 
+export const insertVoiceJournalSchema = createInsertSchema(voiceJournals).omit({
+  id: true,
+  sentiment: true,
+  tags: true,
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type InsertGoal = z.infer<typeof insertGoalSchema>;
 export type InsertTask = z.infer<typeof insertTaskSchema>;
 export type InsertTimeEntry = z.infer<typeof insertTimeEntrySchema>;
 export type InsertHabit = z.infer<typeof insertHabitSchema>;
 export type InsertFriend = z.infer<typeof insertFriendSchema>;
+export type InsertVoiceJournal = z.infer<typeof insertVoiceJournalSchema>;
 
 export type User = typeof users.$inferSelect;
 export type Goal = typeof goals.$inferSelect;
@@ -106,6 +126,7 @@ export type Task = typeof tasks.$inferSelect;
 export type TimeEntry = typeof timeEntries.$inferSelect;
 export type Habit = typeof habits.$inferSelect;
 export type Friend = typeof friends.$inferSelect;
+export type VoiceJournal = typeof voiceJournals.$inferSelect;
 
 export type SuggestionType = 'focus' | 'habit' | 'goal';
 

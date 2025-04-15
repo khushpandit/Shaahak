@@ -4,7 +4,8 @@ import {
   tasks, type Task, type InsertTask,
   timeEntries, type TimeEntry, type InsertTimeEntry,
   habits, type Habit, type InsertHabit,
-  friends, type Friend, type InsertFriend
+  friends, type Friend, type InsertFriend,
+  voiceJournals, type VoiceJournal, type InsertVoiceJournal
 } from "@shared/schema";
 import session from "express-session";
 import createMemoryStore from "memorystore";
