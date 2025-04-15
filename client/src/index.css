@@ -1,0 +1,128 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+  }
+}
+
+:root {
+  --dark: #121626;
+  --dark-secondary: #1e1e24;
+  --dark-tertiary: #2d2d35;
+  --primary: #6e47d4;
+  --primary-light: #8a67f0;
+  --accent-pink: #f45d96;
+  --accent-blue: #38b6ff;
+  --accent-green: #32d196;
+}
+
+/* Animations */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes glow {
+  0%, 100% { box-shadow: 0 0 10px rgba(110, 71, 212, 0.5); }
+  50% { box-shadow: 0 0 20px rgba(110, 71, 212, 0.8); }
+}
+
+@keyframes slideIn {
+  0% { transform: translateX(-20px); opacity: 0; }
+  100% { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes fadeIn {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+/* Apply animations */
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-glow {
+  animation: glow 2s ease-in-out infinite;
+}
+
+.animate-slide-in {
+  animation: slideIn 0.5s ease-out forwards;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.5s ease-out forwards;
+}
+
+/* 3D Card Effects */
+.card-3d {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  transform-style: preserve-3d;
+}
+
+.card-3d:hover {
+  transform: translateY(-5px) rotateX(2deg) rotateY(2deg);
+  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.5);
+}
+
+/* Text Gradient */
+.text-gradient {
+  background: linear-gradient(90deg, var(--primary), var(--accent-pink));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Button Glow */
+.btn-glow {
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-glow::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 70%);
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+
+.btn-glow:hover::after {
+  opacity: 1;
+}
+
+/* Progress Glow */
+.progress-glow {
+  box-shadow: 0 0 10px rgba(110, 71, 212, 0.5);
+}
+
+/* Navigation Item */
+.nav-item {
+  transition: all 0.3s ease;
+}
+
+.nav-item:hover {
+  background-color: rgba(110, 71, 212, 0.2);
+  transform: translateX(5px);
+}
+
+/* Progress Circle */
+.progress-circle {
+  transform: rotate(-90deg);
+}
+
+/* Chart Bar Animation */
+.chart-bar {
+  transition: height 1s ease-out;
+}
