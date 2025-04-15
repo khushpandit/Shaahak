@@ -12,6 +12,7 @@ import SuggestionsPage from "@/pages/suggestions-page";
 import HabitsPage from "@/pages/habits-page";
 import FriendsPage from "@/pages/friends-page";
 import VoiceJournalPage from "@/pages/voice-journal-page";
+import SleepTrackingPage from "@/pages/sleep-tracking-page";
 import { ProtectedRoute } from "./lib/protected-route";
 import { AuthProvider } from "./hooks/use-auth";
 
@@ -27,6 +28,7 @@ function Router() {
       <ProtectedRoute path="/habits" component={HabitsPage} />
       <ProtectedRoute path="/friends" component={FriendsPage} />
       <ProtectedRoute path="/voice-journal" component={VoiceJournalPage} />
+      <ProtectedRoute path="/sleep-tracking" component={SleepTrackingPage} />
       <Route component={NotFound} />
     </Switch>
   );
