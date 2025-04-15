@@ -61,6 +61,12 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        'accent-blue': 'var(--accent-blue)',
+        'accent-purple': 'var(--accent-purple)',
+        'accent-pink': 'var(--accent-pink)',
+        'accent-yellow': 'var(--accent-yellow)',
+        'accent-green': 'var(--accent-green)',
+        'dark-tertiary': 'var(--dark-tertiary)',
       },
       keyframes: {
         "accordion-down": {
@@ -79,10 +85,59 @@ export default {
             height: "0",
           },
         },
+        float: {
+          "0%, 100%": { transform: "translateY(0)" },
+          "50%": { transform: "translateY(-10px)" },
+        },
+        "float-x": {
+          "0%, 100%": { transform: "translateX(0)" },
+          "50%": { transform: "translateX(5px)" },
+        },
+        pulse: {
+          "0%, 100%": { transform: "scale(1)" },
+          "50%": { transform: "scale(1.05)" },
+        },
+        glow: {
+          "0%, 100%": { filter: "drop-shadow(0 0 5px rgba(79, 70, 229, 0.5))" },
+          "50%": { filter: "drop-shadow(0 0 15px rgba(79, 70, 229, 0.8))" },
+        },
+        "slide-in": {
+          from: { opacity: "0", transform: "translateX(-20px)" },
+          to: { opacity: "1", transform: "translateX(0)" },
+        },
+        "slide-up": {
+          from: { transform: "translateY(30px)", opacity: "0" },
+          to: { transform: "translateY(0)", opacity: "1" },
+        },
+        "fade-in": {
+          from: { opacity: "0" },
+          to: { opacity: "1" },
+        },
+        rainbow: {
+          "0%": { backgroundPosition: "0% 50%" },
+          "50%": { backgroundPosition: "100% 50%" },
+          "100%": { backgroundPosition: "0% 50%" },
+        },
+        typing: {
+          from: { width: "0" },
+          to: { width: "100%" }
+        },
+        blink: {
+          "50%": { borderColor: "transparent" }
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "float": "float 3s ease-in-out infinite",
+        "float-x": "float-x 2s ease-in-out infinite",
+        "pulse": "pulse 2s ease-in-out infinite",
+        "glow": "glow 2s ease-in-out infinite",
+        "slide-in": "slide-in 0.4s ease-out forwards",
+        "slide-up": "slide-up 0.5s ease-out forwards",
+        "fade-in": "fade-in 0.6s ease-out forwards",
+        "rainbow": "rainbow 6s linear infinite",
+        "typing": "typing 3.5s steps(40, end), blink 0.75s step-end infinite",
       },
     },
   },

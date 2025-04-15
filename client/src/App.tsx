@@ -15,6 +15,7 @@ import VoiceJournalPage from "@/pages/voice-journal-page";
 import SleepTrackingPage from "@/pages/sleep-tracking-page";
 import { ProtectedRoute } from "./lib/protected-route";
 import { AuthProvider } from "./hooks/use-auth";
+import { ThemeProvider } from "./lib/theme-provider";
 
 function Router() {
   return (
@@ -37,10 +38,12 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <Router />
-        <Toaster />
-      </AuthProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <Router />
+          <Toaster />
+        </AuthProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }

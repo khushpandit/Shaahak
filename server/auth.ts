@@ -1,11 +1,23 @@
 import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
-import { Express } from "express";
+import { Express, Request, Response, NextFunction } from "express";
 import session from "express-session";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { storage } from "./storage";
 import { User as SelectUser } from "@shared/schema";
+import { initializeApp, cert, getApps } from "firebase-admin/app";
+import { getAuth } from "firebase-admin/auth";
+
+// Initialize Firebase Admin (only if not already initialized)
+if (getApps().length === 0) {
+  initializeApp({
+    projectId: process.env.VITE_FIREBASE_PROJECT_ID,
+  });
+}
+
+// Get Firebase Auth instance
+const firebaseAuth = getAuth();
 
 declare global {
   namespace Express {
@@ -28,6 +40,44 @@ async function comparePasswords(supplied: string, stored: string) {
   return timingSafeEqual(hashedBuf, suppliedBuf);
 }
 
+// Middleware to verify Firebase token
+async function verifyFirebaseToken(req: Request, res: Response, next: NextFunction) {
+  const idToken = req.headers.authorization?.split("Bearer ")[1];
+  
+  if (!idToken) {
+    return next(); // No token, proceed to next auth method
+  }
+  
+  try {
+    const decodedToken = await firebaseAuth.verifyIdToken(idToken);
+    const firebaseUser = await firebaseAuth.getUser(decodedToken.uid);
+    
+    // Check if user exists in our database by email
+    let user = await storage.getUserByEmail(firebaseUser.email!);
+    
+    // If user doesn't exist, create one
+    if (!user) {
+      user = await storage.createUser({
+        username: firebaseUser.email!,
+        email: firebaseUser.email!,
+        name: firebaseUser.displayName || firebaseUser.email!.split("@")[0],
+        password: await hashPassword(randomBytes(16).toString("hex")),
+        photoURL: firebaseUser.photoURL,
+        firebaseUid: firebaseUser.uid,
+      });
+    }
+    
+    // Login user
+    req.login(user, (err) => {
+      if (err) return next(err);
+      next();
+    });
+  } catch (error) {
+    console.error("Firebase token verification error:", error);
+    next(); // Error verifying token, proceed to next auth method
+  }
+}
+
 export function setupAuth(app: Express) {
   const sessionSettings: session.SessionOptions = {
     secret: process.env.SESSION_SECRET || "timemaster-app-secret",
@@ -43,6 +93,9 @@ export function setupAuth(app: Express) {
   app.use(session(sessionSettings));
   app.use(passport.initialize());
   app.use(passport.session());
+  
+  // Add Firebase token verification middleware
+  app.use(verifyFirebaseToken);
 
   passport.use(
     new LocalStrategy(async (username, password, done) => {
@@ -121,5 +174,47 @@ export function setupAuth(app: Express) {
     // Remove password from response
     const { password, ...userWithoutPassword } = req.user as SelectUser;
     res.json(userWithoutPassword);
+  });
+  
+  // Google authentication endpoint
+  app.post("/api/auth/google", async (req, res, next) => {
+    try {
+      const { idToken } = req.body;
+      
+      if (!idToken) {
+        return res.status(400).json({ message: "No ID token provided" });
+      }
+      
+      // Verify the ID token
+      const decodedToken = await firebaseAuth.verifyIdToken(idToken);
+      const firebaseUser = await firebaseAuth.getUser(decodedToken.uid);
+      
+      // Check if user exists in our database by email
+      let user = await storage.getUserByEmail(firebaseUser.email!);
+      
+      // If user doesn't exist, create one
+      if (!user) {
+        user = await storage.createUser({
+          username: firebaseUser.email!,
+          email: firebaseUser.email!,
+          displayName: firebaseUser.displayName || firebaseUser.email!.split("@")[0],
+          password: await hashPassword(randomBytes(16).toString("hex")),
+          avatar: firebaseUser.photoURL,
+          firebaseUid: firebaseUser.uid,
+        });
+      }
+      
+      // Login user
+      req.login(user, (err) => {
+        if (err) return next(err);
+        
+        // Remove password from response
+        const { password, ...userWithoutPassword } = user;
+        res.status(200).json(userWithoutPassword);
+      });
+    } catch (error) {
+      console.error("Google auth error:", error);
+      res.status(401).json({ message: "Authentication failed" });
+    }
   });
 }
