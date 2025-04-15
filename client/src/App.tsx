@@ -11,6 +11,7 @@ import ProgressPage from "@/pages/progress-page";
 import SuggestionsPage from "@/pages/suggestions-page";
 import HabitsPage from "@/pages/habits-page";
 import FriendsPage from "@/pages/friends-page";
+import VoiceJournalPage from "@/pages/voice-journal-page";
 import { ProtectedRoute } from "./lib/protected-route";
 import { AuthProvider } from "./hooks/use-auth";
 
@@ -25,6 +26,7 @@ function Router() {
       <ProtectedRoute path="/suggestions" component={SuggestionsPage} />
       <ProtectedRoute path="/habits" component={HabitsPage} />
       <ProtectedRoute path="/friends" component={FriendsPage} />
+      <ProtectedRoute path="/voice-journal" component={VoiceJournalPage} />
       <Route component={NotFound} />
     </Switch>
   );

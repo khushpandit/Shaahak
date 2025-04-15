@@ -1,6 +1,8 @@
 import OpenAI from "openai";
 import { Suggestion } from "@shared/schema";
 import { storage } from "./storage";
+import * as fs from "fs";
+import * as path from "path";
 
 // Initialize the OpenAI client
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -167,4 +169,93 @@ function getDefaultSuggestions(): Suggestion[] {
       action: "Add Goal"
     }
   ];
+}
+
+/**
+ * Transcribe audio to text using OpenAI's Whisper API
+ */
+export async function transcribeAudio(audioFilePath: string): Promise<string> {
+  try {
+    if (!process.env.OPENAI_API_KEY) {
+      throw new Error('OPENAI_API_KEY not found');
+    }
+
+    const fileStream = fs.createReadStream(audioFilePath);
+    
+    const transcription = await openai.audio.transcriptions.create({
+      file: fileStream,
+      model: "whisper-1",
+      language: "en", // Set to English, can be changed based on user preference
+    });
+
+    return transcription.text;
+  } catch (error) {
+    console.error('Error transcribing audio:', error);
+    return '';
+  }
+}
+
+/**
+ * Analyze sentiment and extract topics/tags from transcribed text
+ */
+export async function analyzeSentiment(text: string): Promise<{ sentiment: any, tags: string[] }> {
+  try {
+    if (!process.env.OPENAI_API_KEY) {
+      throw new Error('OPENAI_API_KEY not found');
+    }
+
+    if (!text || text.trim() === '') {
+      return { sentiment: null, tags: [] };
+    }
+
+    const prompt = `
+      Analyze the following journal entry. Extract:
+      1. The overall sentiment (positive, negative, or neutral)
+      2. Key emotional states present (e.g., happy, stressed, motivated, tired)
+      3. Confidence level of your analysis (0-1)
+      4. Up to 5 relevant tags or topics mentioned
+
+      Return the analysis as a JSON object with the following structure:
+      {
+        "sentiment": {
+          "overall": "positive|negative|neutral",
+          "emotions": ["emotion1", "emotion2", ...],
+          "confidence": 0.85
+        },
+        "tags": ["tag1", "tag2", "tag3", "tag4", "tag5"]
+      }
+
+      Journal entry:
+      "${text}"
+    `;
+
+    const response = await openai.chat.completions.create({
+      model: MODEL,
+      messages: [
+        { 
+          role: "system", 
+          content: "You are an AI assistant specialized in sentiment analysis and topic extraction from journal entries." 
+        },
+        { 
+          role: "user", 
+          content: prompt 
+        }
+      ],
+      response_format: { type: "json_object" }
+    });
+
+    const content = response.choices[0].message.content;
+    if (!content) {
+      throw new Error('Empty response from OpenAI');
+    }
+
+    const analysis = JSON.parse(content);
+    return {
+      sentiment: analysis.sentiment || null,
+      tags: analysis.tags || []
+    };
+  } catch (error) {
+    console.error('Error analyzing sentiment:', error);
+    return { sentiment: null, tags: [] };
+  }
 }

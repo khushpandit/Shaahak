@@ -1,9 +1,12 @@
-import type { Express } from "express";
+import express, { type Express, type Request } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth } from "./auth";
-import { generateSuggestions } from "./openai";
+import { generateSuggestions, transcribeAudio, analyzeSentiment } from "./openai";
 import { z } from "zod";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
 import { 
   insertGoalSchema, 
   insertTaskSchema, 
@@ -397,6 +400,218 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to fetch friend activities" });
     }
   });
+
+  // Voice Journal API
+  app.get("/api/voice-journals", isAuthenticated, async (req, res) => {
+    try {
+      const journals = await storage.getVoiceJournals(req.user.id);
+      res.json(journals);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch voice journals" });
+    }
+  });
+
+  app.get("/api/voice-journals/:id", isAuthenticated, async (req, res) => {
+    try {
+      const journalId = parseInt(req.params.id);
+      const journal = await storage.getVoiceJournal(journalId);
+      
+      if (!journal) {
+        return res.status(404).json({ message: "Voice journal not found" });
+      }
+      
+      if (journal.userId !== req.user.id) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+      
+      res.json(journal);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch voice journal" });
+    }
+  });
+
+  // Set up multer storage for voice recordings
+  const uploadsDir = path.join(process.cwd(), 'uploads');
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  }
+  
+  // Serve static files from the uploads directory
+  app.use('/uploads', express.static(uploadsDir));
+  
+  const multerStorage = multer.diskStorage({
+    destination: function(req, file, cb) {
+      cb(null, uploadsDir);
+    },
+    filename: function(req, file, cb) {
+      // Create a unique filename using timestamp and user ID
+      const userId = (req as any).user?.id || 'unknown';
+      const timestamp = Date.now();
+      const ext = path.extname(file.originalname) || '.webm';
+      cb(null, `voice-journal-${userId}-${timestamp}${ext}`);
+    }
+  });
+  
+  const upload = multer({ storage: multerStorage });
+  
+  app.post("/api/voice-journals", isAuthenticated, upload.single('audio'), async (req, res) => {
+    try {
+      const file = req.file;
+      if (!file) {
+        return res.status(400).json({ message: "No audio file uploaded" });
+      }
+      
+      // Create the voice journal entry
+      const journalData = {
+        userId: req.user.id,
+        title: req.body.title || 'Voice Journal Entry',
+        date: new Date(),
+        category: req.body.category || 'journal',
+        duration: parseInt(req.body.duration) || 0,
+        audioUrl: `/uploads/${file.filename}`,
+        transcription: null,
+        sentiment: null,
+        tags: null,
+      };
+      
+      const journal = await storage.createVoiceJournal(journalData);
+      
+      // Process the audio file asynchronously for transcription and analysis
+      // Don't await here to respond to the client faster
+      processAudioFile(file.path, journal.id, req.user.id).catch(err => {
+        console.error('Error processing audio file:', err);
+      });
+      
+      res.status(201).json(journal);
+    } catch (error) {
+      console.error('Error creating voice journal:', error);
+      res.status(500).json({ message: "Failed to create voice journal" });
+    }
+  });
+  
+  // Helper function to process audio files
+  async function processAudioFile(filePath: string, journalId: number, userId: number) {
+    try {
+      // Check if OpenAI API key is available
+      if (!process.env.OPENAI_API_KEY) {
+        console.warn("OPENAI_API_KEY not found, skipping audio transcription and sentiment analysis");
+        return;
+      }
+      
+      // Transcribe the audio
+      const transcription = await transcribeAudio(filePath);
+      
+      // Update the journal with the transcription
+      await storage.updateVoiceJournal(journalId, { transcription });
+      
+      // Analyze sentiment and extract tags
+      if (transcription) {
+        const analysis = await analyzeSentiment(transcription);
+        
+        // Update with sentiment analysis results
+        if (analysis.sentiment) {
+          await storage.updateVoiceJournalSentiment(journalId, analysis.sentiment);
+        }
+        
+        // Update tags
+        if (analysis.tags && analysis.tags.length > 0) {
+          await storage.updateVoiceJournalTags(journalId, analysis.tags);
+        }
+      }
+    } catch (error) {
+      console.error('Error processing audio file:', error);
+    }
+  }
+
+  app.put("/api/voice-journals/:id", isAuthenticated, async (req, res) => {
+    try {
+      const journalId = parseInt(req.params.id);
+      const journal = await storage.getVoiceJournal(journalId);
+      
+      if (!journal) {
+        return res.status(404).json({ message: "Voice journal not found" });
+      }
+      
+      if (journal.userId !== req.user.id) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+      
+      const updatedJournal = await storage.updateVoiceJournal(journalId, req.body);
+      res.json(updatedJournal);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid voice journal data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update voice journal" });
+    }
+  });
+
+  app.delete("/api/voice-journals/:id", isAuthenticated, async (req, res) => {
+    try {
+      const journalId = parseInt(req.params.id);
+      const journal = await storage.getVoiceJournal(journalId);
+      
+      if (!journal) {
+        return res.status(404).json({ message: "Voice journal not found" });
+      }
+      
+      if (journal.userId !== req.user.id) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+      
+      await storage.deleteVoiceJournal(journalId);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete voice journal" });
+    }
+  });
+  
+  // Voice Journal Sentiment and Tags API
+  app.put("/api/voice-journals/:id/sentiment", isAuthenticated, async (req, res) => {
+    try {
+      const journalId = parseInt(req.params.id);
+      const journal = await storage.getVoiceJournal(journalId);
+      
+      if (!journal) {
+        return res.status(404).json({ message: "Voice journal not found" });
+      }
+      
+      if (journal.userId !== req.user.id) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+      
+      const updatedJournal = await storage.updateVoiceJournalSentiment(journalId, req.body);
+      res.json(updatedJournal);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update voice journal sentiment" });
+    }
+  });
+
+  app.put("/api/voice-journals/:id/tags", isAuthenticated, async (req, res) => {
+    try {
+      const journalId = parseInt(req.params.id);
+      const journal = await storage.getVoiceJournal(journalId);
+      
+      if (!journal) {
+        return res.status(404).json({ message: "Voice journal not found" });
+      }
+      
+      if (journal.userId !== req.user.id) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+      
+      if (!Array.isArray(req.body.tags)) {
+        return res.status(400).json({ message: "Tags must be an array" });
+      }
+      
+      const updatedJournal = await storage.updateVoiceJournalTags(journalId, req.body.tags);
+      res.json(updatedJournal);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update voice journal tags" });
+    }
+  });
+
+
 
   // AI Suggestions API
   app.get("/api/suggestions", isAuthenticated, async (req, res) => {
