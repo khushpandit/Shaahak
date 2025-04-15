@@ -58,6 +58,15 @@ export interface IStorage {
   updateFriend(id: number, friend: Partial<InsertFriend>): Promise<Friend>;
   deleteFriend(id: number): Promise<boolean>;
   getFriendActivities(userId: number): Promise<{ id: number, name: string, hours: number, progress: number, recentActivity: string }[]>;
+  
+  // Voice Journal methods
+  getVoiceJournals(userId: number): Promise<VoiceJournal[]>;
+  getVoiceJournal(id: number): Promise<VoiceJournal | undefined>;
+  createVoiceJournal(journal: InsertVoiceJournal): Promise<VoiceJournal>;
+  updateVoiceJournal(id: number, journal: Partial<InsertVoiceJournal>): Promise<VoiceJournal>;
+  deleteVoiceJournal(id: number): Promise<boolean>;
+  updateVoiceJournalSentiment(id: number, sentiment: any): Promise<VoiceJournal>;
+  updateVoiceJournalTags(id: number, tags: string[]): Promise<VoiceJournal>;
 
   // Session store
   sessionStore: session.SessionStore;
@@ -70,6 +79,7 @@ export class MemStorage implements IStorage {
   private timeEntries: Map<number, TimeEntry>;
   private habits: Map<number, Habit>;
   private friends: Map<number, Friend>;
+  private voiceJournals: Map<number, VoiceJournal>;
   currentId: {
     users: number;
     goals: number;
@@ -77,6 +87,7 @@ export class MemStorage implements IStorage {
     timeEntries: number;
     habits: number;
     friends: number;
+    voiceJournals: number;
   };
   sessionStore: session.SessionStore;
 
@@ -87,6 +98,7 @@ export class MemStorage implements IStorage {
     this.timeEntries = new Map();
     this.habits = new Map();
     this.friends = new Map();
+    this.voiceJournals = new Map();
     this.currentId = {
       users: 1,
       goals: 1,
@@ -94,6 +106,7 @@ export class MemStorage implements IStorage {
       timeEntries: 1,
       habits: 1,
       friends: 1,
+      voiceJournals: 1,
     };
     this.sessionStore = new MemoryStore({
       checkPeriod: 86400000,
@@ -365,6 +378,58 @@ export class MemStorage implements IStorage {
     }
     
     return result;
+  }
+
+  // Voice Journal methods
+  async getVoiceJournals(userId: number): Promise<VoiceJournal[]> {
+    return Array.from(this.voiceJournals.values())
+      .filter(journal => journal.userId === userId)
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }
+  
+  async getVoiceJournal(id: number): Promise<VoiceJournal | undefined> {
+    return this.voiceJournals.get(id);
+  }
+  
+  async createVoiceJournal(insertJournal: InsertVoiceJournal): Promise<VoiceJournal> {
+    const id = this.currentId.voiceJournals++;
+    const journal: VoiceJournal = { ...insertJournal, id };
+    this.voiceJournals.set(id, journal);
+    return journal;
+  }
+  
+  async updateVoiceJournal(id: number, updateJournal: Partial<InsertVoiceJournal>): Promise<VoiceJournal> {
+    const journal = this.voiceJournals.get(id);
+    if (!journal) {
+      throw new Error(`Voice journal with id ${id} not found`);
+    }
+    const updatedJournal = { ...journal, ...updateJournal };
+    this.voiceJournals.set(id, updatedJournal);
+    return updatedJournal;
+  }
+  
+  async deleteVoiceJournal(id: number): Promise<boolean> {
+    return this.voiceJournals.delete(id);
+  }
+  
+  async updateVoiceJournalSentiment(id: number, sentiment: any): Promise<VoiceJournal> {
+    const journal = this.voiceJournals.get(id);
+    if (!journal) {
+      throw new Error(`Voice journal with id ${id} not found`);
+    }
+    const updatedJournal = { ...journal, sentiment };
+    this.voiceJournals.set(id, updatedJournal);
+    return updatedJournal;
+  }
+  
+  async updateVoiceJournalTags(id: number, tags: string[]): Promise<VoiceJournal> {
+    const journal = this.voiceJournals.get(id);
+    if (!journal) {
+      throw new Error(`Voice journal with id ${id} not found`);
+    }
+    const updatedJournal = { ...journal, tags };
+    this.voiceJournals.set(id, updatedJournal);
+    return updatedJournal;
   }
 
   // Setup demo data for testing
@@ -671,6 +736,68 @@ export class DatabaseStorage implements IStorage {
     }
     
     return result;
+  }
+
+  // Voice Journal methods
+  async getVoiceJournals(userId: number): Promise<VoiceJournal[]> {
+    return db.select().from(voiceJournals).where(eq(voiceJournals.userId, userId)).orderBy(desc(voiceJournals.date));
+  }
+
+  async getVoiceJournal(id: number): Promise<VoiceJournal | undefined> {
+    const [journal] = await db.select().from(voiceJournals).where(eq(voiceJournals.id, id));
+    return journal;
+  }
+
+  async createVoiceJournal(journal: InsertVoiceJournal): Promise<VoiceJournal> {
+    const [createdJournal] = await db.insert(voiceJournals).values(journal).returning();
+    return createdJournal;
+  }
+
+  async updateVoiceJournal(id: number, journalData: Partial<InsertVoiceJournal>): Promise<VoiceJournal> {
+    const [updatedJournal] = await db
+      .update(voiceJournals)
+      .set(journalData)
+      .where(eq(voiceJournals.id, id))
+      .returning();
+    
+    if (!updatedJournal) {
+      throw new Error(`Voice journal with id ${id} not found`);
+    }
+    
+    return updatedJournal;
+  }
+
+  async deleteVoiceJournal(id: number): Promise<boolean> {
+    const result = await db.delete(voiceJournals).where(eq(voiceJournals.id, id));
+    return result.rowCount > 0;
+  }
+
+  async updateVoiceJournalSentiment(id: number, sentiment: any): Promise<VoiceJournal> {
+    const [updatedJournal] = await db
+      .update(voiceJournals)
+      .set({ sentiment })
+      .where(eq(voiceJournals.id, id))
+      .returning();
+    
+    if (!updatedJournal) {
+      throw new Error(`Voice journal with id ${id} not found`);
+    }
+    
+    return updatedJournal;
+  }
+
+  async updateVoiceJournalTags(id: number, tags: string[]): Promise<VoiceJournal> {
+    const [updatedJournal] = await db
+      .update(voiceJournals)
+      .set({ tags })
+      .where(eq(voiceJournals.id, id))
+      .returning();
+    
+    if (!updatedJournal) {
+      throw new Error(`Voice journal with id ${id} not found`);
+    }
+    
+    return updatedJournal;
   }
 }
 

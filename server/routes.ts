@@ -9,7 +9,8 @@ import {
   insertTaskSchema, 
   insertTimeEntrySchema, 
   insertHabitSchema,
-  insertFriendSchema 
+  insertFriendSchema,
+  insertVoiceJournalSchema
 } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
