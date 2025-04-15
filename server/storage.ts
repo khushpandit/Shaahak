@@ -33,6 +33,7 @@ export interface IStorage {
 
   // Time entry methods
   getTimeEntries(userId: number, startDate?: Date, endDate?: Date): Promise<TimeEntry[]>;
+  getTimeEntry(id: number): Promise<TimeEntry | undefined>;
   createTimeEntry(entry: InsertTimeEntry): Promise<TimeEntry>;
   updateTimeEntry(id: number, entry: Partial<InsertTimeEntry>): Promise<TimeEntry>;
   deleteTimeEntry(id: number): Promise<boolean>;
@@ -187,6 +188,10 @@ export class MemStorage implements IStorage {
       (!startDate || new Date(entry.date) >= startDate) &&
       (!endDate || new Date(entry.date) <= endDate)
     );
+  }
+
+  async getTimeEntry(id: number): Promise<TimeEntry | undefined> {
+    return this.timeEntries.get(id);
   }
 
   async createTimeEntry(insertEntry: InsertTimeEntry): Promise<TimeEntry> {

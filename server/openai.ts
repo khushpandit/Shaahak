@@ -21,39 +21,47 @@ export async function generateSuggestions(userId: number): Promise<Suggestion[]>
       storage.getTasks(userId)
     ]);
 
-    // Prepare the data as context for the AI
+    // Simple mapping functions to extract only the required data
+    // and avoid type errors with optional fields
     const userContext = {
       goals: goals.map(g => ({
         title: g.title,
-        description: g.description,
-        startDate: g.startDate,
-        endDate: g.endDate,
+        description: g.description || "",
+        startDate: g.startDate.toISOString(),
+        endDate: g.endDate.toISOString(),
         targetHours: g.targetHours,
-        actualHours: g.actualHours,
+        actualHours: g.actualHours || 0,
         category: g.category,
-        isCompleted: g.isCompleted,
+        isCompleted: g.isCompleted || false,
+        progress: g.actualHours && g.targetHours ? 
+                 Math.min(100, Math.round((g.actualHours / g.targetHours) * 100)) : 0
       })),
       habits: habits.map(h => ({
         title: h.title,
-        description: h.description,
-        streakCount: h.streakCount,
+        description: h.description || "",
+        streakCount: h.streakCount || 0,
         targetDays: h.targetDays,
         category: h.category,
-        isActive: h.isActive,
+        isActive: h.isActive || true,
+        // Derived data for the AI
+        progress: h.streakCount && h.targetDays ? 
+                 Math.min(100, Math.round((h.streakCount / h.targetDays) * 100)) : 0
       })),
       timeEntries: timeEntries.map(t => ({
         category: t.category,
-        startTime: t.startTime,
-        endTime: t.endTime,
-        date: t.date,
+        startTime: t.startTime.toISOString(),
+        endTime: t.endTime ? t.endTime.toISOString() : null,
+        date: t.date.toISOString(),
         duration: t.duration,
+        // Convert duration from minutes to hours for readability
+        hours: Math.round((t.duration / 60) * 10) / 10
       })),
       tasks: tasks.map(t => ({
         title: t.title,
         category: t.category,
-        startTime: t.startTime,
-        endTime: t.endTime,
-        isCompleted: t.isCompleted,
+        startTime: t.startTime ? t.startTime.toISOString() : null,
+        endTime: t.endTime ? t.endTime.toISOString() : null,
+        isCompleted: t.isCompleted || false
       })),
     };
 

@@ -399,35 +399,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // AI Suggestions API
   app.get("/api/suggestions", isAuthenticated, async (req, res) => {
-    // For this MVP, we'll return static suggestions
-    const suggestions = [
-      {
-        id: "1",
-        title: "Focus Improvement",
-        description: "Based on your patterns, try scheduling study sessions in the morning for better focus and retention.",
-        type: "focus",
-        impact: "high",
-        action: "Apply to Schedule"
-      },
-      {
-        id: "2",
-        title: "Habit Formation",
-        description: "You're 80% of the way to forming your daily reading habit. Keep going for 3 more days!",
-        type: "habit",
-        impact: "medium",
-        action: "View Habit"
-      },
-      {
-        id: "3",
-        title: "Weekly Goal",
-        description: "Consider setting a goal to reduce social media time by 20% next week based on this week's usage.",
-        type: "goal",
-        impact: "low",
-        action: "Add Goal"
+    try {
+      // Check if we have the OpenAI API key
+      if (!process.env.OPENAI_API_KEY) {
+        console.warn("OPENAI_API_KEY not found, using default suggestions");
+        // Return default suggestions if no API key
+        return res.json([
+          {
+            id: "1",
+            title: "Focus Improvement",
+            description: "Based on your patterns, try scheduling study sessions in the morning for better focus and retention.",
+            type: "focus",
+            impact: "high",
+            action: "Apply to Schedule"
+          },
+          {
+            id: "2",
+            title: "Habit Formation",
+            description: "You're 80% of the way to forming your daily reading habit. Keep going for 3 more days!",
+            type: "habit",
+            impact: "medium",
+            action: "View Habit"
+          },
+          {
+            id: "3",
+            title: "Weekly Goal",
+            description: "Consider setting a goal to reduce social media time by 20% next week based on this week's usage.",
+            type: "goal",
+            impact: "low",
+            action: "Add Goal"
+          }
+        ]);
       }
-    ];
-    
-    res.json(suggestions);
+      
+      // Generate AI-powered suggestions based on user data
+      const suggestions = await generateSuggestions(req.user.id);
+      res.json(suggestions);
+    } catch (error) {
+      console.error('Error in suggestions endpoint:', error);
+      res.status(500).json({ 
+        message: "Failed to generate suggestions",
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
   });
 
   const httpServer = createServer(app);
