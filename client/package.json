@@ -1,3 +1,7 @@
 "scripts": {
   "build": "react-scripts build"
 }
+
+"engines": {
+  "node": "18.x"
+}
