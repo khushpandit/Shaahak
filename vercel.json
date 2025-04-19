@@ -1,7 +1,9 @@
 {
-  "buildCommand": "cd client && npm run build",
-  "outputDirectory": "client/dist",
-  "builds": [
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "framework": "vite"
+}
+
     {
       "src": "client/package.json",
       "use": "@vercel/static-build",
