@@ -1,8 +1,6 @@
 {
   "buildCommand": "cd client && npm run build",
-  "outputDirectory": "client/dist"
-}
-{
+  "outputDirectory": "client/dist",
   "builds": [
     {
       "src": "client/package.json",
